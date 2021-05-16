@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Leaderboard</title>
+        <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/regression/2.0.1/regression.min.js" integrity="sha512-0k6FXllQktdobw8Nc8KQN2WtZrOuxpMn7jC2RKCF6LR7EdOhhrg3H5cBPxhs3CFzQVlO6ni1B9SDLUPhBs0Alg==" crossorigin="anonymous"></script> -->
+        <style>
+            body {
+                margin: 0;
+                overflow: hidden;
+
+                display: flex;
+                width: 100vw;
+                height: 100vh;
+            }
+
+            canvas {
+                margin: auto;
+                user-select: none;
+                border: 1px solid black;
+            }
+
+            .overlay {
+                position: absolute;
+                top: 5px;
+                left: 5px;
+
+                display: flex;
+                flex-direction: column;
+            }
+        </style>
+    </head>
+
+    <body>
+        <canvas id="canvas"></canvas>
+        <div class="overlay">
+            <table>
+                <!-- <div>Max: <input type="number" id="max" min="0" value="0"></input></div> -->
+                <tr>
+                    <td>Scaling:</td>
+                    <td><input type="number" id="scaling" min="-1" max="1" step="0.01" value="0" /></td>
+                </tr>
+                <tr>
+                    <td>Smoothing:</td>
+                    <td><input type="number" id="smoothing" min="1" max="100" step="1" value="0"></input></td>
+                </tr>
+                <tr>
+                    <td>Total:</td>
+                    <td><input type="checkbox" id="total"></input></td>
+                </tr>
+                <!-- <tr>
+                    <td>Users:</td>
+                    <td>
+                        <select id="users"><option>All</option></select>
+                    </td>
+                </tr> -->
+            </table>
+        </div>
+        <script src="./plot.js"></script>
+    </body>
+
+</html>

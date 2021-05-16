@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "moduleResolution": "Node",
+        "lib": ["ESNext", "DOM"],
+        "module": "ESNext",
+        "allowSyntheticDefaultImports": true
+    },
+    "include": ["src/*.ts", "shared/*.ts"]
+}

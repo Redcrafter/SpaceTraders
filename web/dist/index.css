@@ -1,0 +1,107 @@
+:root {
+    --bg: #1e1e1e;
+    --textColor: #d4d4d4;
+    --headerColor: #323233;
+
+    --trace: none;
+    --info: block;
+    --warning: block;
+    --error: block;
+}
+
+body {
+    margin: 0;
+    display: grid;
+
+    background-color: var(--bg);
+    color: var(--textColor);
+    font-family: Segoe WPC, Segoe UI, sans-serif;
+}
+
+header {
+    display: flex;
+    background-color: var(--headerColor);
+    line-height: 30px;
+}
+
+header>div {
+    padding: 0 8px;
+}
+
+main {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+main>div {
+    max-height: calc(100vh - 50px);
+    margin: 10px;
+    flex-grow: 1;
+
+    display: flex;
+    flex-direction: column;
+}
+
+#log {
+    border: 1px solid black;
+    overflow: scroll;
+    padding: 4px;
+    overflow-x: hidden;
+
+    font-family: Lucida Console, monospace;
+    background-color: black;
+}
+
+.trace {
+    color: #909090;
+    display: var(--trace);
+}
+
+.info {
+    display: var(--info);
+}
+
+.warning {
+    display: var(--warning);
+}
+
+.error {
+    color: red;
+    display: var(--error);
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td,
+th {
+    /* border: 1px solid black; */
+    border-bottom: 1px solid white;
+
+    padding: 4px;
+}
+
+th {
+    background-color: var(--bg);
+    text-align: left;
+}
+
+#spacer {
+    flex-grow: 1;
+}
+
+a {
+    color: var(--textColor);
+    text-decoration: none;
+}
+
+.scrollTable {
+    overflow-y: auto;
+}
+
+.scrollTable thead th {
+    position: sticky;
+    top: 0;
+}

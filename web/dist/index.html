@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+        <script src="./index.js" type="module"></script>
+        <link rel="stylesheet" href="index.css">
+    </head>
+
+    <body>
+        <header>
+            <div>
+                <span id="username"></span>
+                <span id="credits">0</span> credits
+            </div>
+            <div id="spacer"></div>
+            <div>
+                <a href="./leaderboard">Leaderboard</a>
+            </div>
+            <div>
+                <a href="./display.html">Galaxy Display</a>
+            </div>
+        </header>
+        <main>
+            <div>
+                <h2>Ships</h2>
+                <div class="scrollTable">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Location</th>
+                                <th>Time</th>
+                                <th>Gain</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ships"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="overflow: auto;">
+                Speed: <input id="speed" type="number" min="1" max="4" value="4">
+                <h2>OE Market</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Good</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Utility</th>
+                        </tr>
+                    </thead>
+                    <tbody id="OE-market">
+
+                    </tbody>
+                </table>
+                <h2>XV Market</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Good</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Utility</th>
+                        </tr>
+                    </thead>
+                    <tbody id="XV-market">
+
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                <h2>Log</h2>
+                <div>
+                    <input id="trace" type="checkbox"> Trace
+                    <input id="info" checked type="checkbox"> Info
+                    <input id="warn" checked type="checkbox"> Warning
+                    <input id="error" checked type="checkbox"> Error
+                </div>
+                <div id="log"></div>
+            </div>
+        </main>
+    </body>
+
+</html>
