@@ -17,63 +17,54 @@
                 <span id="credits">0</span> credits
             </div>
             <div id="spacer"></div>
-            <div>
-                <a href="./leaderboard">Leaderboard</a>
-            </div>
-            <div>
-                <a href="./display.html">Galaxy Display</a>
-            </div>
+
+            <!-- <div>Map</div> -->
         </header>
         <main>
-            <div>
-                <h2>Ships</h2>
-                <div class="scrollTable">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Location</th>
-                                <th>Time</th>
-                                <th>Gain</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ships"></tbody>
-                    </table>
+            <div id="shipTab" active>
+                <script src="./ships.js" type="module"></script>
+                <div id="ships"></div>
+            </div>
+            <div id="marketTab" style="overflow: auto;">
+                <script src="./market.js" type="module"></script>
+                Speed: <input id="speed" type="number" min="1" max="4" value="4">
+                <div style="display: flex;">
+                    <div>
+                        <h2>OE Market</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Good</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Utility</th>
+                                </tr>
+                            </thead>
+                            <tbody id="OE-market">
+
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h2>XV Market</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Good</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Utility</th>
+                                </tr>
+                            </thead>
+                            <tbody id="XV-market">
+
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-            <div style="overflow: auto;">
-                Speed: <input id="speed" type="number" min="1" max="4" value="4">
-                <h2>OE Market</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Good</th>
-                            <th>From</th>
-                            <th>To</th>
-                            <th>Utility</th>
-                        </tr>
-                    </thead>
-                    <tbody id="OE-market">
-
-                    </tbody>
-                </table>
-                <h2>XV Market</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Good</th>
-                            <th>From</th>
-                            <th>To</th>
-                            <th>Utility</th>
-                        </tr>
-                    </thead>
-                    <tbody id="XV-market">
-
-                    </tbody>
-                </table>
-            </div>
-            <div>
-                <h2>Log</h2>
+            <div id="logTab">
+                <script src="./log.js" type="module"></script>
                 <div>
                     <input id="trace" type="checkbox"> Trace
                     <input id="info" checked type="checkbox"> Info
@@ -81,6 +72,26 @@
                     <input id="error" checked type="checkbox"> Error
                 </div>
                 <div id="log"></div>
+            </div>
+            <div id="mapTab">
+                <script src="./map.js" type="module"></script>
+                <canvas id="mapCanvas"></canvas>
+            </div>
+            <div id="leaderboardTab">
+                <script src="./leaderboard.js" type="module"></script>
+                <canvas id="leaderboardCanvas"></canvas>
+                <div class="overlay">
+                    <table>
+                        <tr>
+                            <td>Smoothing:</td>
+                            <td><input type="number" id="smoothing" min="0" max="100" step="1" value="0"></input></td>
+                        </tr>
+                        <tr>
+                            <td>Total:</td>
+                            <td><input type="checkbox" id="total" check></input></td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </main>
     </body>

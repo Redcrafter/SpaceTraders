@@ -18,15 +18,17 @@ type ShipStuff = Stationed | Transit;
 let ships = new Map<string, ShipStuff>();
 let planets = new Map<string, Location>();
 
-let canvas = document.getElementById("canvas") as HTMLCanvasElement;
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight
+let canvas = document.getElementById("mapCanvas") as HTMLCanvasElement;
+resize();
+
 let context = canvas.getContext("2d");
 
-window.addEventListener("resize", (e) => {
+window.addEventListener("resize", resize);
+
+function resize() {
     canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
+    canvas.height = window.innerHeight - 30;
+};
 
 listenSocket("info", (info) => {
     for (const ship of info.ships) {

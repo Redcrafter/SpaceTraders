@@ -1,3 +1,6 @@
+import { listenSocket } from "./reciever.js";
+import { LeaderboardMessage } from "./types.js";
+
 // display settings
 const rect = {
     left: 0,
@@ -10,7 +13,7 @@ const rect = {
 };
 
 let maxCredits = 0;
-let scale = -0;
+let max = 0;
 
 let total = true;
 
@@ -24,14 +27,15 @@ let selectRegion = {
 };
 
 // data
-let data: {
-    time: number;
-    data: {
-        netWorth: number;
-        username: string;
-    }[];
-}[];
-let userData = new Map<string, { points: Int32Array, color: string, last: number, path: Path2D }>();
+let data: number[] = [];
+
+let userData = new Map<string, {
+    points: number[];
+    color: string;
+
+    lastY: number;
+    path: Path2D;
+}>();
 
 // mouse handling
 let mouseDown = false;
@@ -46,59 +50,77 @@ let mousePos = {
 
 // elements
 let elements = {
-    scaling: document.getElementById("scaling") as HTMLInputElement,
     smoothing: document.getElementById("smoothing") as HTMLInputElement,
     total: document.getElementById("total") as HTMLInputElement
 };
 
-let canvas = document.getElementById("canvas") as HTMLCanvasElement;
+let canvas = document.getElementById("leaderboardCanvas") as HTMLCanvasElement;
 let context = canvas.getContext("2d");
 resize();
 
 fetch("/data.json").then(x => x.json()).then(x => {
-    data = x;
-
-    for (let i = 0; i < data.length; i++) {
-        const item = data[i];
-
-        for (const user of item.data) {
-            maxCredits = Math.max(user.netWorth, maxCredits);
-
-            let dat = userData.get(user.username);
-            if (!dat) {
-                dat = {
-                    points: new Int32Array(data.length),
-                    color: "#000",
-                    last: 0,
-                    path: null
-                };
-                userData.set(user.username, dat);
-            }
-            dat.points[i] = user.netWorth;
-        }
+    for (let i = 0; i < x.length; i++) {
+        pushData(x[i]);
     }
 
+    updateColors();
     updatePaths();
+});
 
+function pushData(item: LeaderboardMessage["data"]) {
+    let index = data.length;
+
+    data.push(item.time);
+
+    for (const user of item.data) {
+        maxCredits = Math.max(maxCredits, user.netWorth);
+
+        let dat = userData.get(user.username);
+        if (!dat) {
+            dat = {
+                points: new Array(),
+                color: "#000",
+                lastY: 0,
+                path: null
+            };
+            userData.set(user.username, dat);
+        }
+        dat.points[index] = user.netWorth;
+    }
+}
+
+function updateColors() {
     let i = 0;
     for (const [k, v] of userData) {
         v.color = rgbToHex(hslToRgb((i * Math.PI) % 1, 0.7, 0.5));
         i++;
     }
+}
 
-    draw();
-});
+listenSocket("leaderboard", (data) => {
+    pushData(data);
 
-elements.scaling.addEventListener("input", () => {
-    scale = elements.scaling.valueAsNumber
+    updateColors();
     updatePaths();
 });
+
 elements.smoothing.addEventListener("input", () => {
     smoothing = elements.smoothing.valueAsNumber;
     updatePaths();
 });
 elements.total.addEventListener("input", () => {
     total = elements.total.checked;
+
+    if (total) {
+        elements.smoothing.min = "0";
+        elements.smoothing.value = "0";
+        smoothing = 0;
+    } else {
+        elements.smoothing.min = "1";
+        elements.smoothing.value = "20";
+        smoothing = 20;
+    }
+
     updatePaths();
 });
 
@@ -163,8 +185,8 @@ document.addEventListener("mousemove", (e) => {
 });
 
 function resize() {
-    canvas.width = window.innerWidth - 100;
-    canvas.height = window.innerHeight - 100;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight - 30;
 
     rect.right = canvas.width - 70;
     rect.bottom = canvas.height - 30;
@@ -212,12 +234,8 @@ function line(x1: number, y1: number, x2: number, y2: number) {
     context.closePath();
 }
 
-function map(x: number, k: number) {
-    return (k * x - x) / (2 * k * x - k - 1);
-}
-
 function calcY(credits: number) {
-    let val = (map(credits / maxCredits, scale) - (1 - selectRegion.bottom)) / (selectRegion.bottom - selectRegion.top);
+    let val = (credits / max - (1 - selectRegion.bottom)) / (selectRegion.bottom - selectRegion.top);
 
     return -val * rect.height + rect.bottom;
 }
@@ -226,8 +244,43 @@ function updatePaths() {
     const startI = Math.floor(selectRegion.left * (data.length - 1));
     const endI = Math.ceil(selectRegion.right * (data.length - 1));
 
-    let left = data[startI].time;
-    let right = data[endI].time;
+    let left = data[startI];
+    let right = data[endI];
+
+    if (total) {
+        max = maxCredits;
+    } else {
+        max = 0;
+
+        for (const [userName, user] of userData) {
+            function getVal(pos: number) {
+                if (total) {
+                    return user.points[pos];
+                } else {
+                    let start = Math.max(pos - smoothing, 0);
+                    let end = Math.min(pos + smoothing, data.length - 1);
+
+                    return (user.points[end] - user.points[start]) / (data[end] - data[start]);
+                }
+            }
+
+            function smooth(pos: number) {
+                let start = Math.max(pos - smoothing, 0);
+                let end = Math.min(pos + smoothing, data.length - 1);
+
+                let val = 0;
+                for (let i = start; i <= end; i++) {
+                    val += getVal(i);
+                }
+                return val / (end - start + 1);
+            }
+
+            for (let i = startI; i <= endI; i++) {
+                let current = smooth(i);
+                if (!isNaN(current)) max = Math.max(max, current);
+            }
+        }
+    }
 
     for (const [userName, user] of userData) {
         function getVal(pos: number) {
@@ -237,7 +290,7 @@ function updatePaths() {
                 let start = Math.max(pos - smoothing, 0);
                 let end = Math.min(pos + smoothing, data.length - 1);
 
-                return (user.points[end] - user.points[start]) / (data[end].time - data[start].time);
+                return (user.points[end] - user.points[start]) / (data[end] - data[start]);
             }
         }
 
@@ -254,41 +307,27 @@ function updatePaths() {
 
         let path = new Path2D();
 
-        /*let points = [];
-        for (let i = startI + 1; i < endI; i++) {
-            let x = (data[i].time - left) / (right - left);
-            let y = (user.points[i - 1] - user.points[i]) / (data[i - 1].time - data[i].time);
-
-            points.push([x, y]);
-        }
-
-        let res = regression.polynomial(points, { order: 50 });
-        path.moveTo(0, res.predict(0));
-        for (let i = 0; i < 1000; i++) {
-            let pred = res.predict(i / 999);
-            let y = calcY(pred[1]);
-            path.lineTo((i / 999) * (canvas.width - rightMargin), y);
-        }*/
-
         let last = smooth(startI);
         path.moveTo(0, calcY(last));
 
         for (let i = startI + 1; i <= endI; i++) {
-            const item = data[i];
-
-            let x = (item.time - left) / (right - left); // relative time
+            let x = (data[i] - left) / (right - left); // relative time
             x = x * rect.width + rect.left; // relative canvas
 
             let current = smooth(i);
 
-            if (current != 0 || last != 0) {
-                path.lineTo(x, calcY(current));
+            if (current != 0) {
+                if (last == 0) {
+                    path.moveTo(x, calcY(current));
+                } else {
+                    path.lineTo(x, calcY(current));
+                }
             }
 
             last = current;
         }
 
-        user.last = last;
+        user.lastY = last;
         user.path = path;
     }
 
@@ -302,8 +341,9 @@ function draw() {
 function plot() {
     context.resetTransform();
     // context.clearRect(0, 0, canvas.width, canvas.height);
+
     context.lineWidth = 2;
-    context.fillStyle = "#fff";
+    context.fillStyle = "#1e1e1e";
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     if (mouseDown) {
@@ -320,8 +360,8 @@ function plot() {
     }
 
     context.font = "14px sans-serif";
-    context.strokeStyle = "#ccc";
-    context.fillStyle = "#000";
+    context.strokeStyle = "#444";
+    context.fillStyle = "#fff";
 
     {
         context.textBaseline = "middle";
@@ -329,7 +369,7 @@ function plot() {
 
         let count = Math.floor(canvas.height / 50);
         for (let i = 0; i < count; i++) {
-            let val = map((i / (count - 1)) * (selectRegion.bottom - selectRegion.top) + (1 - selectRegion.bottom), -scale) * maxCredits;
+            let val = ((i / (count - 1)) * (selectRegion.bottom - selectRegion.top) + (1 - selectRegion.bottom)) * max;
             let y = calcY(val);
 
             context.fillText(val.toExponential(2), rect.right + 10, y);
@@ -345,8 +385,8 @@ function plot() {
         const startI = Math.floor(selectRegion.left * (data.length - 1));
         const endI = Math.ceil(selectRegion.right * (data.length - 1));
 
-        let left = data[startI].time;
-        let right = data[endI].time;
+        let left = data[startI];
+        let right = data[endI];
 
         let count = Math.floor(canvas.width / 100);
 
@@ -379,7 +419,7 @@ function plot() {
     context.textBaseline = "bottom";
     context.textAlign = "right";
     for (const [k, v] of userData) {
-        context.fillText(k, rect.right, calcY(v.last) - 5);
+        context.fillText(k, rect.right, calcY(v.lastY) - 5);
     }
 
     context.restore();

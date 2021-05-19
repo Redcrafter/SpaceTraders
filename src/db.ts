@@ -5,7 +5,7 @@ import { log } from "./logger.js";
 
 let db: sqlite.Database<sqlite3.Database, sqlite3.Statement>;
 
-sqlite.open({
+let dbOpen = sqlite.open({
     filename: "./log.db",
     driver: sqlite3.cached.Database
 }).then(x => {
@@ -18,6 +18,8 @@ sqlite.open({
     process.exit(1);
 });
 
-export function asyncQuery(query) {
-    return db.all(query);
+export async function asyncQuery(query) {
+    await dbOpen;
+
+    return await db.all(query);
 }

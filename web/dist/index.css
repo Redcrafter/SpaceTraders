@@ -34,10 +34,15 @@ main {
 }
 
 main>div {
-    max-height: calc(100vh - 50px);
-    margin: 10px;
+    max-height: calc(100vh - 30px);
     flex-grow: 1;
+}
 
+main>div:not([active]) {
+    display: none !important;
+}
+
+#logTab {
     display: flex;
     flex-direction: column;
 }
@@ -50,6 +55,8 @@ main>div {
 
     font-family: Lucida Console, monospace;
     background-color: black;
+
+    height: 100%;
 }
 
 .trace {
@@ -77,8 +84,7 @@ table {
 
 td,
 th {
-    /* border: 1px solid black; */
-    border-bottom: 1px solid white;
+    border-bottom: 1px solid gray;
 
     padding: 4px;
 }
@@ -97,11 +103,68 @@ a {
     text-decoration: none;
 }
 
-.scrollTable {
-    overflow-y: auto;
+#ships {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
-.scrollTable thead th {
-    position: sticky;
-    top: 0;
+#ships>div>:first-child {
+    padding: 5px;
+}
+
+#ships>div {
+    width: 200px;
+    margin: 5px;
+    background-color: #313131;
+}
+
+.shipStuff {
+    position: relative;
+}
+
+.shipStuff>div:nth-child(1) {
+    position: absolute;
+    background-color: rgb(55, 133, 55);
+    height: 100%;
+    transition: width 0.5s;
+}
+
+.shipStuff>div:nth-child(2) {
+    position: relative;
+    padding: 0 5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+
+#leaderboardTab {
+    margin: 0;
+    overflow: hidden;
+
+    /* display: flex; */
+    width: 100vw;
+    height: 100vh;
+}
+
+#leaderboardTab canvas {
+    margin: auto;
+    user-select: none;
+}
+
+#leaderboardTab .overlay {
+    position: absolute;
+    top: 40px;
+    left: 5px;
+
+    display: flex;
+    flex-direction: column;
+
+    background-color: #1e1e1e;
+    border: 1px solid black;
+}
+
+#shipTab, #marketTab, #logTab {
+    margin: 10px;
 }

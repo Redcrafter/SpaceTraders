@@ -43,7 +43,7 @@ export function dist(a: Location, b: Location) {
 }
 
 export function calcTime(speed: number, from: Location, to: Location) {
-    return Math.round(dist(from, to) * (2 / speed)) + 60;
+    return Math.round(dist(from, to) * (2 / speed)) + 30;
 }
 
 export function calcFuel(ship: UserShip, from: Location, to: Location) {
@@ -53,7 +53,7 @@ export function calcFuel(ship: UserShip, from: Location, to: Location) {
 
     switch (ship.type) {
         case "HM-MK-III":
-            multiplier = 0.188;
+            multiplier = 0.188; // slightly too high
             penalty = isPlanet ? 1 : 0;
             break;
         case "GR-MK-III":

@@ -4,31 +4,48 @@ import SQL from "sql-template-strings";
 import * as zlib from "zlib";
 
 import { logError, registerLogger } from "./logger.js";
-import { Message } from "./types.js";
+import { LeaderboardMessage, Message } from "./types.js";
 import { asyncQuery } from "./db.js";
 import { sleep, unixEpoch } from "./util.js";
 import { game } from "./api.js";
+
+let leaderboardCache: LeaderboardMessage["data"][] = [];
 
 let app = express();
 app.use(express.static("./web/dist"));
 
 app.get("/data.json", async (req, res) => {
-    let data = await asyncQuery(SQL`SELECT * from leaderboard`);
-
-    for (const el of data) {
-        el.data = JSON.parse(zlib.inflateSync(el.data).toString());
-    }
-
-    res.json(data);
+    res.json(leaderboardCache);
 });
 
 async function trackLeaderboard() {
+    let data: { time: number, data: Uint8Array }[] = await asyncQuery(SQL`SELECT * from leaderboard`);
+
+    for (const el of data) {
+        leaderboardCache.push({
+            time: el.time,
+            data: JSON.parse(zlib.inflateSync(el.data).toString())
+        });
+    }
+
     while (true) {
         try {
             let asdf = await game.leaderboard();
 
             let dat = zlib.deflateSync(JSON.stringify(asdf.netWorth));
-            asyncQuery(SQL`INSERT INTO leaderboard ("time", "data") VALUES (${unixEpoch()}, ${dat})`)
+            let time = unixEpoch();
+            asyncQuery(SQL`INSERT INTO leaderboard ("time", "data") VALUES (${time}, ${dat})`);
+
+            let el = {
+                time,
+                data: asdf.netWorth
+            }
+            leaderboardCache.push(el);
+
+            broadcast({
+                type: "leaderboard",
+                data: el
+            });
 
             await sleep(60 * 1000);
         } catch (e) { logError(e); }

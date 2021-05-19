@@ -1,14 +1,16 @@
 import { performance } from "perf_hooks";
 
-import { ApiError, game, user } from "./api.js";
+import { ApiError, credits, game, location, my, system, user } from "./api.js";
 import { calcFuel, calcTime, distinct, groupBy, sleep, toMap, unixEpoch } from "./util.js";
 import { broadcast } from "./frontend.js";
-import { UserShip, MarketItem, UserData, Location } from "./types.js";
+import { UserShip, MarketItem, UserData, Location, MarketLocation } from "./types.js";
 import { log, logError } from "./logger.js";
 
-let info: UserData;
-let systems: Map<string, Location[]> = null;
-let locations: Map<string, Location> = null;
+let ships: UserShip[];
+
+let systems: Map<string, MarketLocation[]> = null;
+let locations: Map<string, MarketLocation> = null;
+let rawLocs = new Map<string, Location>();
 
 let lastOrder = new Map<string, { symbol: string, cost: number, startTime: number }>();
 
@@ -23,8 +25,26 @@ interface idk {
     gain: number;
 };
 
-async function fetchMarkets(sys: Set<string>) {
-    let markets = await Promise.all([...distinct(info.ships, x => x.location)].filter(x => sys.has(x?.substr(0, 2))).map(x => game.market(x)));
+async function fetchMarkets(requestSystems: Set<string>) {
+    let markets: MarketLocation[] = [];
+
+    for (const locSymbol of distinct(ships, x => x.location)) {
+        let sys = locSymbol?.substr(0, 2);
+
+        if (!requestSystems.has(sys)) continue;
+
+        if (!rawLocs.has(locSymbol)) {
+            for (const item of await system.locations(sys)) {
+                rawLocs.set(item.symbol, item);
+            }
+        }
+        let loc = rawLocs.get(locSymbol);
+        if (!loc) throw new Error("location does not exist");
+
+        markets.push(Object.assign({
+            marketplace: await location.market(locSymbol)
+        }, loc));
+    }
 
     broadcast({ type: "market", data: markets });
 
@@ -32,13 +52,16 @@ async function fetchMarkets(sys: Set<string>) {
     locations = toMap(markets, x => x.symbol);
 }
 
-function scoreRoute(ship: UserShip, start: Location, end: Location) {
+function scoreRoute(ship: UserShip, start: MarketLocation, end: MarketLocation) {
     let best: MarketItem = null;
     let bestGain = 0;
 
     let buy = toMap(start.marketplace, x => x.symbol);
     let time = calcTime(ship.speed, start, end);
-    let freeCargo = ship.maxCargo - calcFuel(ship, start, end);
+
+    let fuel = calcFuel(ship, start, end);
+    let fuelCost = fuel * buy.get("FUEL").pricePerUnit;
+    let freeCargo = ship.maxCargo - fuel;
 
     for (const item of end.marketplace) {
         if (item.symbol == "FUEL" && item.quantityAvailable < 1000) {
@@ -56,7 +79,7 @@ function scoreRoute(ship: UserShip, start: Location, end: Location) {
         if (source.quantityAvailable * item.volumePerUnit < freeCargo) continue;
 
         // (buyAmount * gain) / time
-        const gain = Math.floor(freeCargo / item.volumePerUnit) * (item.sellPricePerUnit - source.purchasePricePerUnit) / time;
+        const gain = (Math.floor(freeCargo / item.volumePerUnit) * (item.sellPricePerUnit - source.purchasePricePerUnit) - fuelCost) / time;
 
         if (gain > bestGain) {
             best = item;
@@ -70,7 +93,7 @@ function scoreRoute(ship: UserShip, start: Location, end: Location) {
     };
 }
 
-function bestRoutes(ship: UserShip, start: Location, depth = 2) {
+function bestRoutes(ship: UserShip, start: MarketLocation, depth = 2) {
     let best: idk = null;
     let bestGain = 0;
 
@@ -125,11 +148,10 @@ async function planShip(ship: UserShip) {
                 continue;
             }
         }
-        sellCount += (await user.sell(ship, cargo.good, cargo.quantity)).order.total;
+
+        sellCount += (await my.sell(ship.id, cargo.good, cargo.quantity)).total;
     }
     ship.cargo = [];
-
-    info.credits += sellCount;
 
     if (lastOrder.has(ship.id)) { // log profits
         const last = lastOrder.get(ship.id);
@@ -143,7 +165,7 @@ async function planShip(ship: UserShip) {
     let buyCount = 0;
     if (resource) {
         buyCount = Math.floor((ship.maxCargo - fuelCost) / resource.volumePerUnit);
-        buyCount = Math.min(buyCount, Math.floor(info.credits / resource.pricePerUnit),);
+        buyCount = Math.min(buyCount, Math.floor(credits / resource.pricePerUnit),);
 
         // can't afford to buy cargo
         if (buyCount == 0) return;
@@ -154,21 +176,19 @@ async function planShip(ship: UserShip) {
         }
     }
 
-    let order = await user.purchase(ship, "FUEL", fuelCost - fuelHave);
-    info.credits = order.credits;
+    await my.purchase(ship.id, "FUEL", fuelCost - fuelHave);
 
     if (buyCount != 0) {
-        order = await user.purchase(ship, resource.symbol, buyCount);
-        info.credits = order.credits;
+        let order = await my.purchase(ship.id, resource.symbol, buyCount);
 
-        lastOrder.set(ship.id, { symbol: resource.symbol, cost: order.order.total, startTime: performance.now() });
+        lastOrder.set(ship.id, { symbol: resource.symbol, cost: order.total, startTime: performance.now() });
         log("info", `[main] Trip ${shipLoc.symbol} -> ${destination.symbol} ${resource.symbol}`);
     } else {
         log("info", `[main] Trip ${shipLoc.symbol} -> ${destination.symbol}`);
     }
 
     // TODO: when too little fuel by extra
-    let plan = await user.submitFlight(ship.id, destination.symbol);
+    let plan = await my.submitFlight(ship.id, destination.symbol);
 
     broadcast({
         type: "flight",
@@ -183,11 +203,16 @@ async function planShip(ship: UserShip) {
 }
 
 async function planTrip() {
-    info = await user.info();
-    broadcast({ type: "info", data: info });
+    ships = await my.Ship.get();
+    broadcast({
+        type: "info", data: {
+            credits,
+            ships
+        }
+    });
 
-    let validShips = selectShips(info.ships);
-    if (validShips.length == 0) return info;
+    let validShips = selectShips(ships);
+    if (validShips.length == 0) return;
 
     log("info", "[main] Fetching markets");
     await fetchMarkets(distinct(validShips, x => x.location.substr(0, 2)));
@@ -195,69 +220,66 @@ async function planTrip() {
     for (const ship of validShips) {
         await planShip(ship).catch(logError);
     }
-
-    return info;
 }
 
 async function setup() {
-    await user.create();
-    await user.requestLoan("STARTUP");
+    async function doFlight(ship: UserShip, dest: Location | string) {
+        if(typeof dest == "string") {
+            dest = locations.get(dest);
+        }
 
-    {
-        let ship = await user.buyShip("JW-MK-I", "OE-PM-TR");
-        await user.purchase(ship, "FUEL", 1);
-        await user.submitFlight(ship.id, "OE-PM");
-    }
-
-    let locations = toMap(await game.locations("OE"), x => x.name);
-
-    async function doFlight(ship: UserShip, dest: Location) {
         let loc = locations.get(ship.location);
         if (loc == dest) return;
 
         let fuel = calcFuel(ship, loc, dest);
 
-        await user.purchase(ship, "FUEL", fuel);
-        let plan = await user.submitFlight(ship.id, dest.symbol);
+        await my.purchase(ship.id, "FUEL", fuel);
+        let plan = await my.submitFlight(ship.id, dest.symbol);
 
         return plan.timeRemainingInSeconds * 1000;
     }
 
     async function waitCredits(n: number) {
-        while (info.credits < n) {
+        while (credits < n) {
             try {
-                info = await planTrip();
+                await planTrip();
             } catch (e) { }
         }
     }
 
-    {
-        let ship = await user.buyShip("JW-MK-I", "OE-PM-TR");
-        await sleep(await doFlight(ship, locations.get("OE-NY")));
-    }
+    function buyJw() { return my.Ship.buy("JW-MK-I", "OE-PM-TR"); }
 
-    await user.buyShip("GR-MK-II", "OE-NY");
+    await user.create();
+    await my.Loan.request("STARTUP");
 
-    let info = await user.info();
+    let scouts = [
+        (await buyJw()),
+        (await buyJw()),
+        (await buyJw())
+    ];
 
-    await waitCredits(30000);
-    await user.buyShip("JW-MK-I", "OE-PM-TR");
+    let locations = toMap(await system.locations("OE"), x => x.name);
+
+    await doFlight(scouts[0], "OE-PM");
+    await sleep(await doFlight(scouts[1], "OE-NY"));
+
+    await my.Ship.buy("GR-MK-II", "OE-NY");
 
     await waitCredits(300000);
-    await user.buyShip("GR-MK-III", "OE-NY");
+    await my.Ship.buy("GR-MK-III", "OE-NY");
 
     // play and buy scouts
     for (const [k, v] of locations) {
         if (k == "OE-PM" || k == "OE-NY" || k == "OE-PM-TR") continue;
 
         await waitCredits(30000);
-        let ship = await user.buyShip("JW-MK-I", "OE-PM-TR");
+        let ship = await buyJw();
         await doFlight(ship, v);
     }
 
     for (let i = 0; i < 5; i++) {
         await waitCredits(300000);
-        await user.buyShip("GR-MK-III", "OE-NY");
+        await my.Ship.buy("GR-MK-III", "OE-NY");
     }
 }
 
@@ -269,13 +291,15 @@ async function main() {
         running = false;
     });
 
+    // fetch initial credit count
+    await my.info();
+
     let lastCredits = 0;
 
     while (running) {
         try {
-            let info = await planTrip();
+            await planTrip();
 
-            let credits = info.credits;
             if (credits != lastCredits) {
                 console.log(`Credits: ${credits}`);
                 lastCredits = credits;

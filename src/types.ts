@@ -4,20 +4,27 @@ export interface Cargo {
     totalVolume: number;
 }
 
-export interface UserShip {
-    id: string;
-    location: string;
-    x: number;
-    y: number;
-    cargo: Cargo[];
-    spaceAvailable: number;
-    type: string;
+export interface ShipData {
     class: string;
-    maxCargo: number;
-    speed: number;
     manufacturer: string;
+    maxCargo: number;
+
+    type: string;
+
+    speed: number;
     plating: number;
     weapons: number;
+}
+
+export interface UserShip extends ShipData {
+    id: string;
+    location: string;
+
+    x: number;
+    y: number;
+
+    spaceAvailable: number;
+    cargo: Cargo[];
 }
 
 export interface Loan {
@@ -31,8 +38,9 @@ export interface Loan {
 export interface UserData {
     username: string;
     credits: number;
-    ships: UserShip[];
-    loans: Loan[];
+    joinedAt: string;
+    shipCount: number;
+    structureCount: number;
 }
 
 export interface MarketShip {
@@ -59,16 +67,15 @@ export interface Location {
     y: number;
 
     allowsConstruction: boolean;
-    structures: any[];
-
-    ships?: MarketShip[];
-    marketplace?: MarketItem[];
+    dockedShips: number;
+}
+export interface MarketLocation extends Location {
+    marketplace: MarketItem[];
 }
 
 export interface System {
     symbol: string;
     name: string;
-    locations: Location[];
 }
 
 export interface FlightPlan {
@@ -85,15 +92,15 @@ export interface FlightPlan {
     timeRemainingInSeconds: number;
 }
 
-export interface MarketOrder {
-    credits: number;
-    order: {
-        good: string;
-        quantity: number;
-        pricePerUnit: number;
-        total: number;
-    }
-    ship: UserShip;
+export interface LeaderboardEntry {
+    username: string;
+    netWorth: number;
+    rank: number;
+}
+
+export interface Leaderboard {
+    netWorth: LeaderboardEntry[];
+    userNetWorth: [LeaderboardEntry];
 }
 
 export interface FlightData {
@@ -103,9 +110,13 @@ export interface FlightData {
     ship: UserShip;
     gain: number;
 }
+
 export interface InfoMessage {
     type: "info";
-    data: UserData;
+    data: {
+        credits: number;
+        ships: UserShip[]
+    };
 }
 export interface FlightMessage {
     type: "flight";
@@ -123,7 +134,15 @@ export interface LogMessage {
 }
 export interface MarketMessage {
     type: "market";
-    data: Location[];
+    data: MarketLocation[];
 }
 
-export type Message = FlightMessage | InfoMessage | LogMessage | MarketMessage;
+export interface LeaderboardMessage {
+    type: "leaderboard",
+    data: {
+        time: number,
+        data: LeaderboardEntry[]
+    }
+}
+
+export type Message = FlightMessage | InfoMessage | LogMessage | MarketMessage | LeaderboardMessage;

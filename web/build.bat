@@ -1,4 +1,4 @@
-cp ./src/types.ts ./src/src/
-cp ./src/util.ts ./src/src/
+cp ./src/types.ts ./web/src/
+cp ./src/util.ts ./web/src/
 cd web
 tsc -w
