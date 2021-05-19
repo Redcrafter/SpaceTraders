@@ -1,0 +1,5 @@
+{
+    "files.exclude": {
+        "web/dist/*.js": true
+    }
+}
