@@ -5,11 +5,12 @@ export interface Cargo {
 }
 
 export interface ShipData {
+    type: string;
     class: string;
     manufacturer: string;
-    maxCargo: number;
 
-    type: string;
+    maxCargo: number;
+    loadingSpeed: number;
 
     speed: number;
     plating: number;
@@ -18,13 +19,15 @@ export interface ShipData {
 
 export interface UserShip extends ShipData {
     id: string;
-    location: string;
+
+    location?: string;
+    flightPlanId?: string;
 
     x: number;
     y: number;
 
-    spaceAvailable: number;
     cargo: Cargo[];
+    spaceAvailable: number;
 }
 
 export interface Loan {
@@ -63,11 +66,14 @@ export interface Location {
     symbol: string;
     type: string;
     name: string;
+
     x: number;
     y: number;
 
     allowsConstruction: boolean;
-    dockedShips: number;
+    traits: string[];
+
+    messages?: string[];
 }
 export interface MarketLocation extends Location {
     marketplace: MarketItem[];

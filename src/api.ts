@@ -9,6 +9,11 @@ let settings: {
     username: string;
 } = JSON.parse(readFileSync("./src/settings.json").toString());
 
+if (!settings.username) {
+    console.log("Error: missing username in settings.json");
+    process.exit(0);
+}
+
 export let credits = 0;
 
 const baseUrl = "https://api.spacetraders.io";
@@ -146,7 +151,6 @@ export namespace user {
 }
 
 export namespace my {
-    const buyLimit = 500;
     const myUrl = `${baseUrl}/my`;
 
     export async function info() {
@@ -201,32 +205,36 @@ export namespace my {
         return (await fetchAuth<{ flightPlan: FlightPlan }>(`${myUrl}/flight-plans?shipId=${shipId}&destination=${destination}`, "post")).flightPlan;
     }
 
-    export async function purchase(shipId: string, good: string, quantity: number) {
+    export async function purchase(ship: UserShip, good: string, quantity: number) {
         if (quantity == 0) return;
 
-        if (quantity > buyLimit) {
-            await purchase(shipId, good, buyLimit);
-            await purchase(shipId, good, quantity - buyLimit);
+        if (quantity > ship.loadingSpeed) {
+            await purchase(ship, good, ship.loadingSpeed);
+            return await purchase(ship, good, quantity - ship.loadingSpeed);
         }
 
-        let dat = await fetchAuth<MarketOrder>(`${myUrl}/purchase-orders?shipId=${shipId}&good=${good}&quantity=${quantity}`, "post");
+        let dat = await fetchAuth<MarketOrder>(`${myUrl}/purchase-orders?shipId=${ship.id}&good=${good}&quantity=${quantity}`, "post");
         credits = dat.credits;
 
         return dat.order;
     }
 
-    export async function sell(shipId: string, good: string, quantity: number) {
+    export async function sell(ship: UserShip, good: string, quantity: number) {
         if (quantity == 0) return;
 
-        if (quantity > buyLimit) {
-            await sell(shipId, good, buyLimit);
-            await sell(shipId, good, quantity - buyLimit);
+        if (quantity > ship.loadingSpeed) {
+            await sell(ship, good, ship.loadingSpeed);
+            return await sell(ship, good, quantity - ship.loadingSpeed);
         }
 
-        let dat = await fetchAuth<MarketOrder>(`${myUrl}/sell-orders?shipId=${shipId}&good=${good}&quantity=${quantity}`, "post");
+        let dat = await fetchAuth<MarketOrder>(`${myUrl}/sell-orders?shipId=${ship.id}&good=${good}&quantity=${quantity}`, "post");
         credits = dat.credits;
 
         return dat.order;
+    }
+
+    export async function warp(shipId: string) {
+        return (await fetchAuth<{ flightPlan: FlightPlan }>(`https://api.spacetraders.io/my/warp-jumps?shipId=${shipId}`, "post")).flightPlan;
     }
 }
 

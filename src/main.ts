@@ -1,9 +1,9 @@
 import { performance } from "perf_hooks";
 
-import { ApiError, credits, game, location, my, system, user } from "./api.js";
-import { calcFuel, calcTime, distinct, groupBy, sleep, toMap, unixEpoch } from "./util.js";
+import { ApiError, credits, location, my, system, user } from "./api.js";
+import { calcFuel, calcTime, distinct, groupBy, sleep, toMap } from "./util.js";
 import { broadcast } from "./frontend.js";
-import { UserShip, MarketItem, UserData, Location, MarketLocation } from "./types.js";
+import { UserShip, MarketItem, Location, MarketLocation } from "./types.js";
 import { log, logError } from "./logger.js";
 
 let ships: UserShip[];
@@ -149,7 +149,7 @@ async function planShip(ship: UserShip) {
             }
         }
 
-        sellCount += (await my.sell(ship.id, cargo.good, cargo.quantity)).total;
+        sellCount += (await my.sell(ship, cargo.good, cargo.quantity)).total;
     }
     ship.cargo = [];
 
@@ -176,10 +176,10 @@ async function planShip(ship: UserShip) {
         }
     }
 
-    await my.purchase(ship.id, "FUEL", fuelCost - fuelHave);
+    await my.purchase(ship, "FUEL", fuelCost - fuelHave);
 
     if (buyCount != 0) {
-        let order = await my.purchase(ship.id, resource.symbol, buyCount);
+        let order = await my.purchase(ship, resource.symbol, buyCount);
 
         lastOrder.set(ship.id, { symbol: resource.symbol, cost: order.total, startTime: performance.now() });
         log("info", `[main] Trip ${shipLoc.symbol} -> ${destination.symbol} ${resource.symbol}`);
@@ -224,7 +224,7 @@ async function planTrip() {
 
 async function setup() {
     async function doFlight(ship: UserShip, dest: Location | string) {
-        if(typeof dest == "string") {
+        if (typeof dest == "string") {
             dest = locations.get(dest);
         }
 
@@ -233,7 +233,7 @@ async function setup() {
 
         let fuel = calcFuel(ship, loc, dest);
 
-        await my.purchase(ship.id, "FUEL", fuel);
+        await my.purchase(ship, "FUEL", fuel);
         let plan = await my.submitFlight(ship.id, dest.symbol);
 
         return plan.timeRemainingInSeconds * 1000;
@@ -258,7 +258,7 @@ async function setup() {
         (await buyJw())
     ];
 
-    let locations = toMap(await system.locations("OE"), x => x.name);
+    let locations = toMap(await system.locations("OE"), x => x.symbol);
 
     await doFlight(scouts[0], "OE-PM");
     await sleep(await doFlight(scouts[1], "OE-NY"));
@@ -270,7 +270,9 @@ async function setup() {
 
     // play and buy scouts
     for (const [k, v] of locations) {
-        if (k == "OE-PM" || k == "OE-NY" || k == "OE-PM-TR") continue;
+        ships = await my.Ship.get();
+
+        if (ships.some(x => x.type == "JW-MK-I" && x.location == k)) continue;
 
         await waitCredits(30000);
         let ship = await buyJw();
@@ -280,6 +282,11 @@ async function setup() {
     for (let i = 0; i < 5; i++) {
         await waitCredits(300000);
         await my.Ship.buy("GR-MK-III", "OE-NY");
+    }
+
+    for (let i = 0; i < 40; i++) {
+        await waitCredits(500000); // 445200
+        await my.Ship.buy("HM-MK-III", "OE-UC-AD");
     }
 }
 
@@ -292,7 +299,15 @@ async function main() {
     });
 
     // fetch initial credit count
-    await my.info();
+    try {
+        await my.info();
+    } catch (e) {
+        if (e.data.message == "Token was invalid or missing from the request. Did you confirm sending the token as a query parameter or authorization header?") {
+            await setup();
+        } else {
+            throw e;
+        }
+    }
 
     let lastCredits = 0;
 
